@@ -18,6 +18,12 @@ public:
   double Kd;
 
   /*
+  * Saturation of control
+  */
+  double Cmin;
+  double Cmax;
+
+  /*
   * Constructor
   */
   PID();
@@ -30,17 +36,13 @@ public:
   /*
   * Initialize PID.
   */
-  void Init(double Kp, double Ki, double Kd);
+  void Init(double Kp_in, double Ki_in, double Kd_in, double Cmin_in,
+            double Cmax_in);
 
   /*
-  * Update the PID error variables given cross track error.
+  * Control the output variable of the PID controller.
   */
-  void UpdateError(double cte);
-
-  /*
-  * Calculate the total PID error.
-  */
-  double TotalError();
+  double Control(double error);
 };
 
 #endif /* PID_H */

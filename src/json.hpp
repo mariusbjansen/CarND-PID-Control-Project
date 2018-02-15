@@ -8871,10 +8871,10 @@ private:
       literal_null,   ///< the `null` literal
       value_string,   ///< a string -- use get_string() for actual value
       value_unsigned, ///< an unsigned integer -- use get_number() for actual
-                      ///value
+                      /// value
       value_integer,  ///< a signed integer -- use get_number() for actual value
       value_float,  ///< an floating point number -- use get_number() for actual
-                    ///value
+                    /// value
       begin_array,  ///< the character for array begin `[`
       begin_object, ///< the character for object begin `{`
       end_array,    ///< the character for array end `]`
