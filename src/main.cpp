@@ -31,8 +31,10 @@ int main() {
   uWS::Hub h;
 
   PID pid;
-  // TODO: Initialize the pid variable. (NOT TUNED YET)
-  pid.Init(0.15, 0.0, 0.45, -1, 1);
+  // DONE: Initialize the pid variable.
+  // Acutally a PD controller is enough for this purpose
+  // I is not 0 just pro forma
+  pid.Init(0.15, 0.0005, 0.45, -1, 1);
 
   h.onMessage([&pid](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
@@ -51,7 +53,7 @@ int main() {
           double angle = std::stod(j[1]["steering_angle"].get<std::string>());
           double steer_value;
           /*
-          * TODO: Calcuate steering value here, remember the steering value is
+          * DONE: Calcuate steering value here, remember the steering value is
           * [-1, 1].
           */
           steer_value = pid.Control(cte);
@@ -62,7 +64,7 @@ int main() {
           * another PID controller to control the speed!
           */
 
-          // introduce moving sum
+          // introduce moving sum of steering values
           static double s[5] = {0};
           s[4] = s[3];
           s[3] = s[2];
@@ -72,13 +74,12 @@ int main() {
 
           double throttle = 0.2;
 
-          // sum of steering values are below threshold -> accelerate (linear
-          // function)
+          // sum steering values below threshold -> accelerate (lin. function)
           if (fabs(sum) < 0.1) {
             throttle += -8.0 * fabs(sum) + 0.8;
           }
 
-          // High cross track error with exceeding speed threshold
+          // High cross track error with exceeding speed threshold -> full brake
           if ((fabs(cte) > 0.9) && (speed > 18.0)) {
             throttle = -1.0;
           }
