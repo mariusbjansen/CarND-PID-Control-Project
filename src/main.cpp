@@ -1,8 +1,8 @@
-#include "PID.h"
-#include "json.hpp"
-#include <iostream>
 #include <math.h>
 #include <uWS/uWS.h>
+#include <iostream>
+#include "PID.h"
+#include "json.hpp"
 
 // for convenience
 using json = nlohmann::json;
@@ -32,7 +32,7 @@ int main() {
 
   PID pid;
   // TODO: Initialize the pid variable. (NOT TUNED YET)
-  pid.Init(0.05, 0.0, 0.1, -1, 1);
+  pid.Init(0.15, 0.0, 0.45, -1, 1);
 
   h.onMessage([&pid](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
@@ -62,13 +62,34 @@ int main() {
           * another PID controller to control the speed!
           */
 
+          // introduce moving sum
+          static double s[5] = {0};
+          s[4] = s[3];
+          s[3] = s[2];
+          s[2] = s[1];
+          s[0] = fabs(steer_value);
+          double sum = s[0] + s[1] + s[2] + s[3] + s[4];
+
+          double throttle = 0.2;
+
+          // sum of steering values are below threshold -> accelerate (linear
+          // function)
+          if (fabs(sum) < 0.1) {
+            throttle += -8.0 * fabs(sum) + 0.8;
+          }
+
+          // High cross track error with exceeding speed threshold
+          if ((fabs(cte) > 0.9) && (speed > 18.0)) {
+            throttle = -1.0;
+          }
+
           // DEBUG
           std::cout << "CTE: " << cte << " Steering Value: " << steer_value
                     << std::endl;
 
           json msgJson;
           msgJson["steering_angle"] = steer_value;
-          msgJson["throttle"] = 0.3;
+          msgJson["throttle"] = throttle;
           auto msg = "42[\"steer\"," + msgJson.dump() + "]";
           std::cout << msg << std::endl;
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
