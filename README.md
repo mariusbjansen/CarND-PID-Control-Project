@@ -3,96 +3,51 @@ Self-Driving Car Engineer Nanodegree Program
 
 ---
 
-## Dependencies
+## Reflection
 
-* cmake >= 3.5
- * All OSes: [click here for installation instructions](https://cmake.org/install/)
-* make >= 4.1(mac, linux), 3.81(Windows)
-  * Linux: make is installed by default on most Linux distros
-  * Mac: [install Xcode command line tools to get make](https://developer.apple.com/xcode/features/)
-  * Windows: [Click here for installation instructions](http://gnuwin32.sourceforge.net/packages/make.htm)
-* gcc/g++ >= 5.4
-  * Linux: gcc / g++ is installed by default on most Linux distros
-  * Mac: same deal as make - [install Xcode command line tools]((https://developer.apple.com/xcode/features/)
-  * Windows: recommend using [MinGW](http://www.mingw.org/)
-* [uWebSockets](https://github.com/uWebSockets/uWebSockets)
-  * Run either `./install-mac.sh` or `./install-ubuntu.sh`.
-  * If you install from source, checkout to commit `e94b6e1`, i.e.
-    ```
-    git clone https://github.com/uWebSockets/uWebSockets 
-    cd uWebSockets
-    git checkout e94b6e1
-    ```
-    Some function signatures have changed in v0.14.x. See [this PR](https://github.com/udacity/CarND-MPC-Project/pull/3) for more details.
-* Simulator. You can download these from the [project intro page](https://github.com/udacity/self-driving-car-sim/releases) in the classroom.
+### Task
+In this project the goal was to implement a PID controller, run it in the Udacity simulator and tune the parameters
 
-There's an experimental patch for windows in this [PR](https://github.com/udacity/CarND-PID-Control-Project/pull/3)
+### Effects of the P, I, D
 
-## Basic Build Instructions
+<img src="PID_en.svg.png" width="600">
+Source: https://en.wikipedia.org/wiki/PID_controller
 
-1. Clone this repo.
-2. Make a build directory: `mkdir build && cd build`
-3. Compile: `cmake .. && make`
-4. Run it: `./pid`. 
+The PID controller consist of an P a D and an I part.
 
-Tips for setting up your environment can be found [here](https://classroom.udacity.com/nanodegrees/nd013/parts/40f38239-66b6-46ec-ae68-03afd8a601c8/modules/0949fca6-b379-42af-a919-ee50aa304e6a/lessons/f758c44c-5e40-4e01-93b5-1a82aa4e044f/concepts/23d376c7-0195-4276-bdf0-e02f1f3c665d)
+* Term P is proportional to the current value of the error (in our case the cross track error *cte*). It is basically a factor. If the error is high you multiply the error with the tuned factor for P gain (Kp) and that's it. If the error is low or 0 there is little or nothing to do for the P part
+* Term D  is proportional to the derivative (rate of change) of the system. When the error is still high but the system already changes in the direction of minimizing the error already, the D part prevents the system from overshooting and therefore oscillating to much.
+* Term I accounts for the integrated error and helps delivering stationary accuracy. Example: When the error is once 0 the P part is 0. If the system requires some constant value for the control variable the I part will take this into account because it is integrating over the error.
 
-## Editor Settings
+* It is possible to just pass with a P controller and a low velocity (throttle) value
+* The D part help preventing oscillating to much and the velocity may be increase
+* The I part in this specific project did not make to much sense because P and D had already enough to do. You can image driving on a straight road with constant bending, in this scenario the I part would be perfect to reach stationary accuracy.
 
-We've purposefully kept editor configuration files out of this repo in order to
-keep it as simple and environment agnostic as possible. However, we recommend
-using the following settings:
+#### Tuning
+I just tuned P with step size 0.1 and then D with also step size 0.1. Eventually I set some value for I but it's not really necessary. There are many ways like twiddle which was introduced by Sebastian but also some old fashioned values like Ziegler–Nichols method: Set Ki and Kd to zero. And then increase P until it reaches the ultimate gain and oscillations start. Then you have a lookup table for oscillation period T_oscillation to set I and/or D. I would say I did it the Ziegler-Nichols way even if I did not have a specific value for T_oscillation and it was more a trial and error.
 
-* indent using spaces
-* set tab width to 2 spaces (keeps the matrices in source code aligned)
+#### Throttle control
+I decided to say basically I want to have throttle of 0.2 by default. Then there are two case
+* Sum of the last four and current steering angle is low, I want to apply linearly extra throttle till maximum throttle
+* If have a critical situation (judged by cte > 0.9 and speed > 18 I want maximum brake.
 
-## Code Style
+```javascript
+// introduce moving sum of steering values
+static double s[5] = {0};
+s[4] = s[3];
+s[3] = s[2];
+s[2] = s[1];
+s[0] = fabs(steer_value);
+double sum = s[0] + s[1] + s[2] + s[3] + s[4];
+double throttle = 0.2;
+// sum steering values below threshold -> accelerate (lin. function)
+if (fabs(sum) < 0.1) {
+  throttle += -8.0 * fabs(sum) + 0.8;
+}
+// High cross track error with exceeding speed threshold -> full brake
+if ((fabs(cte) > 0.9) && (speed > 18.0)) {
+  throttle = -1.0;
+}
+```
 
-Please (do your best to) stick to [Google's C++ style guide](https://google.github.io/styleguide/cppguide.html).
-
-## Project Instructions and Rubric
-
-Note: regardless of the changes you make, your project must be buildable using
-cmake and make!
-
-More information is only accessible by people who are already enrolled in Term 2
-of CarND. If you are enrolled, see [the project page](https://classroom.udacity.com/nanodegrees/nd013/parts/40f38239-66b6-46ec-ae68-03afd8a601c8/modules/f1820894-8322-4bb3-81aa-b26b3c6dcbaf/lessons/e8235395-22dd-4b87-88e0-d108c5e5bbf4/concepts/6a4d8d42-6a04-4aa6-b284-1697c0fd6562)
-for instructions and the project rubric.
-
-## Hints!
-
-* You don't have to follow this directory structure, but if you do, your work
-  will span all of the .cpp files here. Keep an eye out for TODOs.
-
-## Call for IDE Profiles Pull Requests
-
-Help your fellow students!
-
-We decided to create Makefiles with cmake to keep this project as platform
-agnostic as possible. Similarly, we omitted IDE profiles in order to we ensure
-that students don't feel pressured to use one IDE or another.
-
-However! I'd love to help people get up and running with their IDEs of choice.
-If you've created a profile for an IDE that you think other students would
-appreciate, we'd love to have you add the requisite profile files and
-instructions to ide_profiles/. For example if you wanted to add a VS Code
-profile, you'd add:
-
-* /ide_profiles/vscode/.vscode
-* /ide_profiles/vscode/README.md
-
-The README should explain what the profile does, how to take advantage of it,
-and how to install it.
-
-Frankly, I've never been involved in a project with multiple IDE profiles
-before. I believe the best way to handle this would be to keep them out of the
-repo root to avoid clutter. My expectation is that most profiles will include
-instructions to copy files to a new location to get picked up by the IDE, but
-that's just a guess.
-
-One last note here: regardless of the IDE used, every submitted project must
-still be compilable with cmake and make./
-
-## How to write a README
-A well written README file can enhance your project and portfolio.  Develop your abilities to create professional README files by completing [this free course](https://www.udacity.com/course/writing-readmes--ud777).
-
+I decdided actively against introducing a new PID controller for throttle because I don't know the target value for speed. That's different than knowing the target value for cte (which is 0) and here it makes perfectly sense to introduce a PID controller for steering.
